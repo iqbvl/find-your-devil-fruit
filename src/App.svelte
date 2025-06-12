@@ -6,7 +6,14 @@
     let error = null;
     let savedFruits = [];
     
-    // Load saved fruits from cookies on component mount
+    // API Source Attribution
+    const API_SOURCE = {
+        name: "API One Piece",
+        url: "https://api.api-onepiece.com",
+        github: "https://github.com/peperunas/api-onepiece"
+    };
+    
+    // Load saved fruits from cookies
     onMount(() => {
         const saved = getCookie('savedDevilFruits');
         if (saved) {
@@ -14,52 +21,60 @@
         }
     });
     
-    // Function to get cookie value
+    // Get cookie value
     function getCookie(name) {
         const value = `; ${document.cookie}`;
         const parts = value.split(`; ${name}=`);
         if (parts.length === 2) return parts.pop().split(';').shift();
     }
     
-    // Function to set cookie
+    // Set cookie
     function setCookie(name, value, days = 365) {
         const date = new Date();
         date.setTime(date.getTime() + (days * 24 * 60 * 60 * 1000));
         document.cookie = `${name}=${value};expires=${date.toUTCString()};path=/`;
     }
     
-    // Function to fetch a random devil fruit
+    // Fetch a random Devil Fruit
     async function findDevilFruit() {
         loading = true;
         error = null;
         
         try {
             const response = await fetch('https://api.api-onepiece.com/v2/fruits/en');
-            if (!response.ok) throw new Error('Failed to fetch devil fruits');
+            if (!response.ok) throw new Error('API request failed');
             
             const data = await response.json();
-            const fruits = data.fruits || [];
+            const fruits = Array.isArray(data) ? data : (data.fruits || []);
             
-            if (fruits.length === 0) throw new Error('No devil fruits found');
+            if (fruits.length === 0) throw new Error('No fruits available');
             
-            // Get a random fruit
             const randomIndex = Math.floor(Math.random() * fruits.length);
             devilFruit = fruits[randomIndex];
             
-            // Save to saved fruits if not already there
             if (!savedFruits.some(f => f.id === devilFruit.id)) {
                 savedFruits = [...savedFruits, devilFruit];
                 setCookie('savedDevilFruits', JSON.stringify(savedFruits));
             }
         } catch (err) {
-            error = err.message;
+            error = "Failed to fetch Devil Fruits. Showing a default fruit.";
             console.error(err);
+            
+            // Fallback data (Gomu Gomu no Mi)
+            devilFruit = {
+                id: 'fallback-1',
+                name: 'Gomu Gomu no Mi',
+                type: 'Paramecia',
+                ability: 'Rubber Human',
+                description: 'Turns the user into a Rubber Human',
+                picture: 'https://static.wikia.nocookie.net/onepiece/images/6/6a/Gomu_Gomu_no_Mi.png'
+            };
         } finally {
             loading = false;
         }
     }
     
-    // Function to clear saved fruits
+    // Clear saved fruits
     function clearSavedFruits() {
         savedFruits = [];
         setCookie('savedDevilFruits', '');
@@ -68,6 +83,13 @@
 
 <main>
     <h1>Find Your Devil Fruit</h1>
+    
+    <div class="api-credit">
+        <p>Data provided by: 
+            <a href={API_SOURCE.url} target="_blank" rel="noopener noreferrer">{API_SOURCE.name}</a>
+            (<a href={API_SOURCE.github} target="_blank" rel="noopener noreferrer">GitHub</a>)
+        </p>
+    </div>
     
     <div class="container">
         <button on:click={findDevilFruit} disabled={loading}>
@@ -80,21 +102,48 @@
         
         {#if devilFruit}
             <div class="result">
-                <h2>Your Devil Fruit is: {devilFruit.name}</h2>
-                <p><strong>Type:</strong> {devilFruit.type}</p>
-                <p><strong>Ability:</strong> {devilFruit.ability}</p>
-                <p><strong>Description:</strong> {devilFruit.description}</p>
+                <h2>{devilFruit.name}</h2>
+                
+                {#if devilFruit.picture}
+                    <div class="fruit-image-container">
+                        <img 
+                            src={devilFruit.picture} 
+                            alt={devilFruit.name} 
+                            class="fruit-image"
+                            on:error={(e) => e.target.style.display = 'none'}
+                        />
+                    </div>
+                {/if}
+                
+                <div class="fruit-details">
+                    <p><strong>Type:</strong> {devilFruit.type}</p>
+                    <p><strong>Ability:</strong> {devilFruit.ability}</p>
+                    <p><strong>Description:</strong> {devilFruit.description}</p>
+                </div>
             </div>
         {/if}
         
         {#if savedFruits.length > 0}
             <div class="saved-fruits">
-                <h3>Previously Found Fruits:</h3>
-                <ul>
+                <h3>Previously Found:</h3>
+                <div class="saved-fruits-grid">
                     {#each savedFruits as fruit}
-                        <li>{fruit.name} ({fruit.type})</li>
+                        <div class="saved-fruit">
+                            {#if fruit.picture}
+                                <img 
+                                    src={fruit.picture} 
+                                    alt={fruit.name} 
+                                    class="saved-fruit-image"
+                                    on:error={(e) => e.target.style.display = 'none'}
+                                />
+                            {/if}
+                            <div class="saved-fruit-info">
+                                <strong>{fruit.name}</strong>
+                                <span>({fruit.type})</span>
+                            </div>
+                        </div>
                     {/each}
-                </ul>
+                </div>
                 <button on:click={clearSavedFruits}>Clear History</button>
             </div>
         {/if}
